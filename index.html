@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: white;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  padding: 12px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 23px;
+  font-weight: 750;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #999;
+  margin-top: 3px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.snowflake-balance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 75px;
+  height: 39px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.snowflake-icon {
+  font-size: 18px;
+}
+
+.snowflake-number {
+  font-size: 13px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.refresh {
+  border: 0;
+  background: rgba(255,255,255,.12);
+  color: white;
+  width: 39px;
+  height: 39px;
+  border-radius: 12px;
+  font-size: 19px;
+}
+
+.section {
+  font-size: 13px;
+  color: #aaa;
+  font-weight: 650;
+  margin: 20px 0 10px;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+}
+
+.quest {
+  background: rgba(35,35,35,.78);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 17px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.quest-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.quest-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.quest-name {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.quest-description {
+  font-size: 11px;
+  color: #999;
+  margin-top: 3px;
+}
+
+.check {
+  color: #65d991;
+  font-size: 19px;
+  font-weight: bold;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 13px;
+}
+
+.progress {
+  height: 6px;
+  background: rgba(255,255,255,.12);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-top: 7px;
+}
+
+.fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 20px;
+  transition: width .3s ease;
+}
+
+.fill.complete {
+  background: #65d991;
+}
+
+.quest-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.reward {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.claim-button {
+  border: 0;
+  background: white;
+  color: #111;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 8px 13px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.claim-button:disabled {
+  opacity: .55;
+}
+
+.claimed {
+  color: #65d991;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.not-ready {
+  color: #777;
+  font-size: 11px;
+}
+
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 30px 10px;
+  font-size: 13px;
+}
+
+.status {
+  text-align: center;
+  color: #888;
+  font-size: 11px;
+  padding: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">Daily Quests</div>
+    <div class="subtitle" id="date">Loading...</div>
+  </div>
+
+  <div class="header-right">
+    <div class="snowflake-balance">
+      <span class="snowflake-icon">❄️</span>
+      <span class="snowflake-number" id="snowflakeBalance">0</span>
+    </div>
+
+    <button class="refresh" onclick="loadQuests()">↻</button>
+  </div>
+</div>
+
+<div id="content">
+  <div class="empty">Loading quests...</div>
+</div>
+
+<div class="status" id="status"></div>
+
+<script>
+const GAME_API =
+"https://script.google.com/macros/s/AKfycby5tKKny4hqGyG--JQxP4IVe2C8WWGO6sMij6p66MdSmLFVDUn6TbeBbM2L51TdWia_/exec";
+
+const CATEGORY_API =
+"https://script.google.com/macros/s/AKfycbzpUaMFpZapsLUhLa_t8Aa5EOkzPPCaIUk1dqjKsk7NUZUnWN6kl8eo9Sg3hDg_CAE/exec";
+
+const FRIENDS_API =
+"https://script.google.com/macros/s/AKfycbzcX9WsRdeEdz1ziWq4CbuUwa_WwxxUGPI1YtMTvYIHZGZ4cBus_p7qXdIIiFW_0hu_/exec";
+
+const QUEST_API =
+"https://script.google.com/macros/s/AKfycbxrO7Lsh9H7AJJqz6sdk-5lyiyC2C3bS89uHbyEGtPdpD_h3El-qsxWTzvvi2Vv_SGe/exec";
+
+const MAX_SESSIONS = 50;
+
+const QUESTS = [
+  {
+    id: "getting_started",
+    name: "Getting Started",
+    type: "PLAYTIME",
+    goal: 15,
+    reward: 5,
+    unit: "min",
+    description: "Play Roblox for 15 minutes."
+  },
+  {
+    id: "keep_playing",
+    name: "Keep Playing",
+    type: "PLAYTIME",
+    goal: 30,
+    reward: 10,
+    unit: "min",
+    description: "Play Roblox for 30 minutes."
+  },
+  {
+    id: "dedicated_player",
+    name: "Dedicated Player",
+    type: "PLAYTIME",
+    goal: 45,
+    reward: 15,
+    unit: "min",
+    description: "Play Roblox for 45 minutes."
+  },
+  {
+    id: "gaming_session",
+    name: "Gaming Session",
+    type: "PLAYTIME",
+    goal: 60,
+    reward: 20,
+    unit: "min",
+    description: "Play Roblox for 60 minutes."
+  },
+
+  {
+    id: "snow_day",
+    name: "Snow Day",
+    type: "WINTER",
+    goal: 5,
+    reward: 5,
+    unit: "min",
+    description: "Play winter games for 5 minutes."
+  },
+  {
+    id: "winter_warm_up",
+    name: "Winter Warm-Up",
+    type: "WINTER",
+    goal: 10,
+    reward: 10,
+    unit: "min",
+    description: "Play winter games for 10 minutes."
+  },
+  {
+    id: "winter_wonderland",
+    name: "Winter Wonderland",
+    type: "WINTER",
+    goal: 15,
+    reward: 15,
+    unit: "min",
+    description: "Play winter games for 15 minutes."
+  },
+  {
+    id: "snow_explorer",
+    name: "Snow Explorer",
+    type: "WINTER",
+    goal: 20,
+    reward: 20,
+    unit: "min",
+    description: "Play winter games for 20 minutes."
+  },
+  {
+    id: "winter_adventurer",
+    name: "Winter Adventurer",
+    type: "WINTER",
+    goal: 30,
+    reward: 25,
+    unit: "min",
+    description: "Play winter games for 30 minutes."
+  },
+  {
+    id: "frozen_world",
+    name: "Frozen World",
+    type: "WINTER",
+    goal: 45,
+    reward: 35,
+    unit: "min",
+    description: "Play winter games for 45 minutes."
+  },
+  {
+    id: "holiday_spirit",
+    name: "Holiday Spirit",
+    type: "WINTER",
+    goal: 60,
+    reward: 50,
+    unit: "min",
+    description: "Play winter games for 60 minutes."
+  },
+
+  {
+    id: "friendly_visit",
+    name: "Friendly Visit",
+    type: "FRIENDS",
+    goal: 1,
+    reward: 10,
+    unit: "games",
+    description: "Play 1 game a friend also played today."
+  },
+  {
+    id: "gaming_together",
+    name: "Gaming Together",
+    type: "FRIENDS",
+    goal: 2,
+    reward: 20,
+    unit: "games",
+    description: "Play 2 games your friends also played today."
+  },
+  {
+    id: "social_gamer",
+    name: "Social Gamer",
+    type: "FRIENDS",
+    goal: 3,
+    reward: 30,
+    unit: "games",
+    description: "Play 3 games your friends also played today."
+  },
+
+  {
+    id: "tycoon_time",
+    name: "Tycoon Time",
+    type: "GENRE",
+    genre: "Tycoon",
+    goal: 15,
+    reward: 15,
+    unit: "min",
+    description: "Play Tycoon games for 15 minutes."
+  },
+  {
+    id: "obstacle_course",
+    name: "Obstacle Course",
+    type: "GENRE",
+    genre: "Obby",
+    goal: 15,
+    reward: 15,
+    unit: "min",
+    description: "Play Obby games for 15 minutes."
+  },
+  {
+    id: "simulation_time",
+    name: "Simulation Time",
+    type: "GENRE",
+    genre: "Simulation",
+    goal: 15,
+    reward: 15,
+    unit: "min",
+    description: "Play Simulation games for 15 minutes."
+  },
+  {
+    id: "roleplay_time",
+    name: "Roleplay Time",
+    type: "GENRE",
+    genre: "Roleplay",
+    goal: 15,
+    reward: 15,
+    unit: "min",
+    description: "Play Roleplay games for 15 minutes."
+  }
+];
+
+let claimedQuestIDs = new Set();
+
+function localDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+
+  return `${y}-${m}-${d}`;
+}
+
+function sameDay(value, today) {
+  const date = new Date(value);
+
+  if (isNaN(date.getTime())) return false;
+
+  return localDate(date) === today;
+}
+
+function getCategoryValue(game, field) {
+  return String(game[field] || "").trim();
+}
+
+function latestSessions(sessions) {
+  return sessions
+    .filter(session => session && session.date)
+    .sort((a, b) =>
+      new Date(b.date).getTime() -
+      new Date(a.date).getTime()
+    )
+    .slice(0, MAX_SESSIONS);
+}
+
+function buildCategoryMap(categories) {
+  const map = new Map();
+
+  categories.forEach(game => {
+    map.set(String(game["Game ID"]), game);
+  });
+
+  return map;
+}
+
+function getProgress(quest, sessions, categoryMap) {
+  let total = 0;
+
+  sessions.forEach(session => {
+    const id = String(session.id);
+    const category = categoryMap.get(id);
+    const minutes = Number(session.minutes) || 0;
+
+    if (quest.type === "PLAYTIME") {
+      total += minutes;
+    }
+
+    if (quest.type === "WINTER" && category) {
+      const winter = getCategoryValue(
+        category,
+        "Winter Game?"
+      ).toUpperCase();
+
+      if (winter === "YES") {
+        total += minutes;
+      }
+    }
+
+    if (quest.type === "GENRE" && category) {
+      const genre =
+        getCategoryValue(category, "Manual Genre") ||
+        getCategoryValue(category, "Genre");
+
+      if (
+        genre.toLowerCase() === quest.genre.toLowerCase()
+      ) {
+        total += minutes;
+      }
+    }
+  });
+
+  return total;
+}
+
+function getFriendsProgress(mySessions, friendSessions) {
+  const myGameIDs = new Set(
+    mySessions.map(session => String(session.id))
+  );
+
+  const friendGameIDs = new Set(
+    friendSessions.map(session => String(session.id))
+  );
+
+  let sharedGames = 0;
+
+  myGameIDs.forEach(id => {
+    if (friendGameIDs.has(id)) {
+      sharedGames++;
+    }
+  });
+
+  return sharedGames;
+}
+
+
+// API HELPERS
+
+async function apiRequest(action, extra = {}) {
+  const url = new URL(QUEST_API);
+
+  url.searchParams.set("action", action);
+
+  Object.entries(extra).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  const response = await fetch(url.toString(), {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error("Quest server could not be reached.");
+  }
+
+  return response.json();
+}
+
+
+// BALANCE
+
+async function loadSnowflakes() {
+  try {
+    const data = await apiRequest("getCandy");
+
+    if (!data.success) {
+      throw new Error(data.error || "Could not load balance.");
+    }
+
+    document.getElementById("snowflakeBalance").textContent =
+      Number(data.candy || 0).toLocaleString();
+
+  } catch (error) {
+    console.error("Snowflake balance error:", error);
+  }
+}
+
+
+// CLAIMED QUESTS
+
+async function loadClaims() {
+  const data = await apiRequest("getClaims");
+
+  if (!data.success) {
+    throw new Error("Could not load claimed quests.");
+  }
+
+  claimedQuestIDs = new Set(data.claimedQuestIds || []);
+}
+
+
+// RENDER QUEST
+
+function renderQuest(quest, progress) {
+  const completed = progress >= quest.goal;
+  const claimed = claimedQuestIDs.has(quest.id);
+
+  const percentage = Math.min(
+    100,
+    (progress / quest.goal) * 100
+  );
+
+  let actionHTML = "";
+
+  if (claimed) {
+    actionHTML = `
+      <span class="claimed">Claimed ✓</span>
+    `;
+  } else if (completed) {
+    actionHTML = `
+      <button
+        class="claim-button"
+        onclick="claimQuest('${quest.id}')">
+        Claim ❄️ +${quest.reward}
+      </button>
+    `;
+  } else {
+    actionHTML = `
+      <span class="not-ready">Not completed</span>
+    `;
+  }
+
+  return `
+    <div class="quest">
+      <div class="quest-top">
+        <div class="quest-info">
+          <div class="quest-name">${quest.name}</div>
+          <div class="quest-description">
+            ${quest.description}
+          </div>
+        </div>
+
+        <div class="check">
+          ${completed ? "✓" : ""}
+        </div>
+      </div>
+
+      <div class="progress-info">
+        <span>${completed ? "Completed" : "In progress"}</span>
+        <span>${Math.min(progress, quest.goal)} / ${quest.goal} ${quest.unit}</span>
+      </div>
+
+      <div class="progress">
+        <div
+          class="fill ${completed ? "complete" : ""}"
+          style="width:${percentage}%">
+        </div>
+      </div>
+
+      <div class="quest-bottom">
+        <span class="reward">❄️ +${quest.reward}</span>
+        ${actionHTML}
+      </div>
+    </div>
+  `;
+}
+
+
+// CLAIM QUEST
+
+async function claimQuest(questId) {
+  const status = document.getElementById("status");
+
+  const button = document.querySelector(
+    `button[onclick="claimQuest('${questId}')"]`
+  );
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Claiming...";
+  }
+
+  status.textContent = "Verifying quest...";
+
+  try {
+    const data = await apiRequest("claimQuest", {
+      questId: questId
+    });
+
+    if (!data.success) {
+      throw new Error(data.error || "Unable to claim reward.");
+    }
+
+    if (!claimedQuestIDs.has(questId)) {
+      claimedQuestIDs.add(questId);
+    }
+
+    document.getElementById("snowflakeBalance").textContent =
+      Number(data.candy || 0).toLocaleString();
+
+    status.textContent = data.alreadyClaimed
+      ? "This quest has already been claimed."
+      : `You earned ${data.reward} snowflakes! ❄️`;
+
+    await loadQuests(false);
+
+  } catch (error) {
+    status.textContent = error.message;
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = `Claim ❄️`;
+    }
+  }
+}
+
+
+// LOAD QUESTS
+
+async function loadQuests(showLoading = true) {
+  const content = document.getElementById("content");
+  const status = document.getElementById("status");
+
+  if (showLoading) {
+    content.innerHTML =
+      '<div class="empty">Loading quests...</div>';
+  }
+
+  status.textContent = "Updating progress...";
+
+  loadSnowflakes();
+
+  try {
+    const [
+      gameResponse,
+      categoryResponse,
+      friendsResponse
+    ] = await Promise.all([
+      fetch(GAME_API, { cache: "no-store" }),
+      fetch(CATEGORY_API, { cache: "no-store" }),
+      fetch(FRIENDS_API, { cache: "no-store" })
+    ]);
+
+    if (
+      !gameResponse.ok ||
+      !categoryResponse.ok ||
+      !friendsResponse.ok
+    ) {
+      throw new Error("Could not load API data.");
+    }
+
+    const [
+      sessions,
+      categoryData,
+      friendSessions
+    ] = await Promise.all([
+      gameResponse.json(),
+      categoryResponse.json(),
+      friendsResponse.json()
+    ]);
+
+    if (!Array.isArray(sessions)) {
+      throw new Error("GAME API did not return an array.");
+    }
+
+    if (!Array.isArray(friendSessions)) {
+      throw new Error("FRIENDS API did not return an array.");
+    }
+
+    if (
+      !categoryData.success ||
+      !Array.isArray(categoryData.games)
+    ) {
+      throw new Error("GAME CATEGORIES API returned invalid data.");
+    }
+
+    await loadClaims();
+
+    const latestGames = latestSessions(sessions);
+    const latestFriends = latestSessions(friendSessions);
+
+    const today = localDate(new Date());
+
+    document.getElementById("date").textContent =
+      new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric"
+      });
+
+    const todaysSessions = latestGames.filter(session =>
+      sameDay(session.date, today)
+    );
+
+    const todaysFriendSessions = latestFriends.filter(session =>
+      sameDay(session.date, today)
+    );
+
+    const categoryMap = buildCategoryMap(
+      categoryData.games
+    );
+
+    const friendsProgress = getFriendsProgress(
+      todaysSessions,
+      todaysFriendSessions
+    );
+
+    let html = '<div class="section">Daily Challenges</div>';
+    let completed = 0;
+    let claimed = 0;
+
+    QUESTS.forEach(quest => {
+      const progress =
+        quest.type === "FRIENDS"
+          ? friendsProgress
+          : getProgress(
+              quest,
+              todaysSessions,
+              categoryMap
+            );
+
+      if (progress >= quest.goal) {
+        completed++;
+      }
+
+      if (claimedQuestIDs.has(quest.id)) {
+        claimed++;
+      }
+
+      html += renderQuest(quest, progress);
+    });
+
+    content.innerHTML = html;
+
+    status.textContent =
+      `${completed} of ${QUESTS.length} completed · ${claimed} claimed`;
+
+  } catch (error) {
+    content.innerHTML =
+      '<div class="empty">Unable to load quests. Please try again.</div>';
+
+    status.textContent = error.message;
+
+    console.error(error);
+  }
+}
+
+loadQuests();
+</script>
+
+</body>
+</html>
